@@ -216,8 +216,10 @@ class Hilbert(Turtle):
 		self.size = 10.0
 		self.hilbert(level, 90.0)
 
+		dbg = open("debug.log", "w")
+
 		fp = open("hilbert%d.exp" % level, "wb")
-		fp.write(self.emb.export_melco())
+		fp.write(self.emb.export_melco(dbg))
 		fp.close()
 
 	# http://en.wikipedia.org/wiki/Hilbert_curve#Python
