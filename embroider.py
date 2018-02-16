@@ -38,7 +38,7 @@ import lxml.etree as etree
 from lxml.builder import E
 import shapely.geometry as shgeo
 from datetime import datetime
-import threading
+import multiprocessing
 
 dbg = open("/Users/alwynster/git/embroider/embroider-debug.txt", "w")
 PyEmb.dbg = dbg
@@ -172,7 +172,7 @@ class PatchList:
 	def tsp_by_color(self):
 		list_of_patchLists = self.partition_by_color()
 
-		threaded = True
+		threaded = False
 
 		begin = datetime.now()
 		if threaded:
@@ -187,7 +187,9 @@ class PatchList:
 			# thread_counter = 0
 			threads = list()
 			for patchList in list_of_patchLists:
-				threads.append(threading.Thread(target=ThreadedTravelingSalesman, args=(patchList, ) ))
+				threads.append(multiprocessing.Process(target=ThreadedTravelingSalesman, args=(patchList,)))
+
+				# threads.append(threading.Thread(target=ThreadedTravelingSalesman, args=(patchList, ) ))
 				# thread_counter += 1
 
 			print 'starting threads'
