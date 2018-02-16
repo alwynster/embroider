@@ -19,6 +19,8 @@
 import sys
 if sys.platform == "darwin":
 	sys.path.append("/Applications/Inkscape.app/Contents/Resources/share/inkscape/extensions")
+elif sys.platform == "win32":
+	sys.path.append("C:/Program Files/Inkscape/share/extensions")
 else:
 	sys.path.append("/usr/share/inkscape/extensions")
 import os
@@ -40,7 +42,8 @@ import shapely.geometry as shgeo
 from datetime import datetime
 import multiprocessing
 
-dbg = open("/Users/alwynster/git/embroider/embroider-debug.txt", "w")
+folder = "C:/Users/alwynster/git/embroider/"
+dbg = open("%sembroider-debug.txt" % folder, "w")
 PyEmb.dbg = dbg
 pixels_per_millimeter = 90.0 / 25.4
 
@@ -127,22 +130,8 @@ class Patch:
 class DebugHole:
 	pass
 
-# finished_list = None
-# finished_lock = False
 def ThreadedTravelingSalesman(patchlist):
-	# global finished_list
-	# global finished_lock
-
 	patchlist.traveling_salesman()
-
-	# done with this thread
-	# wait for lock
-	# while finished_lock:
-	# 	continue
-	# finished_lock = True
-	# finished_list[threadIndex] = False
-	# finished_lock = False
-	# print 'done with thread', threadIndex
 
 class PatchList:
 
@@ -172,44 +161,25 @@ class PatchList:
 	def tsp_by_color(self):
 		list_of_patchLists = self.partition_by_color()
 
-		threaded = False
+		threaded = True
 
 		begin = datetime.now()
 		if threaded:
-			print 'list', len(list_of_patchLists)
-			# global finished_list
-			# global finished_lock
-			
-			# finished_list = [True for i in range(len(list_of_patchLists))]
-			# print finished_list
-			# finished_lock = False
-
-			# thread_counter = 0
+			# create a thread for each patchlist
 			threads = list()
 			for patchList in list_of_patchLists:
 				threads.append(multiprocessing.Process(target=ThreadedTravelingSalesman, args=(patchList,)))
 
-				# threads.append(threading.Thread(target=ThreadedTravelingSalesman, args=(patchList, ) ))
-				# thread_counter += 1
-
-			print 'starting threads'
 			for t in threads:
 				t.start()
 
-			print 'waiting for threads'
+			# waiting for threads to finish
 			for t in threads:
 				t.join()
-				print 'next'
-				
-
-			# print 'waiting for threads...'
-			# while any(finished_list):
-			# 	time.sleep(0.1)
-			# 	continue
 		else:
 			for patchList in list_of_patchLists:
 				patchList.traveling_salesman()
-		print 'Threaded?', threaded, datetime.now() - begin
+		# print 'Threaded?', threaded, datetime.now() - begin
 
 		return PatchList(reduce(operator.add,
 			map(lambda pl: pl.patches, list_of_patchLists)))
@@ -400,7 +370,7 @@ class EmbroideryObject:
 				emb.addStitch(newStitch)
 		emb.translate_to_origin()
 		emb.scale(10.0/pixels_per_millimeter)
-		fp = open("/Users/alwynster/git/embroider/embroider-output.exp", "wb")
+		fp = open("%sembroider-output.exp" % folder, "wb")
 		#fp = open("output.ksm", "wb")
 		fp.write(emb.export_melco(dbg))
 		fp.close()
@@ -464,9 +434,9 @@ class SortOrder:
 
 class Embroider(inkex.Effect):
 	def __init__(self, *args, **kwargs):
-		# if len(sys.argv) > 1:
-		# 	dbg.write("writing args\n")
-		# 	pickle.dump(sys.argv, open("/Users/alwynster/git/embroider/args.pkl", "wb"))
+		if len(sys.argv) > 2:
+			dbg.write("writing args\n")
+			pickle.dump(sys.argv, open("%sargs.pkl" % folder, "wb"))
 		dbg.write("args: %s\n" % repr(sys.argv))
 		inkex.Effect.__init__(self)
 		self.stacking_order_counter = 0
@@ -635,7 +605,7 @@ class Embroider(inkex.Effect):
 	
 		self.patchList = self.patchList.tsp_by_color()
 		dbg.write("patch count: %d\n" % len(self.patchList.patches))
-		print 'patches:', len(self.patchList.patches)
+		# print 'patches:', len(self.patchList.patches)
 
 		eo = EmbroideryObject(self.patchList, self.row_spacing_px)
 
@@ -752,11 +722,14 @@ class Embroider(inkex.Effect):
 if __name__ == '__main__':
 	sys.setrecursionlimit(100000);
 	e = Embroider()
-	oldargs = pickle.load(open("/Users/alwynster/git/embroider/args.pkl", "rb"))
-	if len(sys.argv) > 1:
+	if len(sys.argv) == 2:
+		oldargs = pickle.load(open("%sargs.pkl" % folder, "rb"))
 		oldargs[-1] = sys.argv[-1]
+		dbg.write("pickle loaded")
+	else:
+		oldargs = sys.argv
 	e.affect(args=oldargs,output=False)
 	dbg.write("aaaand, I'm done. seeeya!\n")
 	dbg.flush()
 
-dbg.close()
+	dbg.close()
