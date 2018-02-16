@@ -40,9 +40,11 @@ import lxml.etree as etree
 from lxml.builder import E
 import shapely.geometry as shgeo
 from datetime import datetime
-import threading
+import multiprocessing
 
-dbg = open("C:/Users/alwynster/embroidery/embroider-debug.txt", "w")
+
+folder = "C:/Users/alwynster/git/embroider/"
+dbg = open("%sembroider-debug.txt" % folder, "w")
 PyEmb.dbg = dbg
 pixels_per_millimeter = 90.0 / 25.4
 
@@ -129,11 +131,8 @@ class Patch:
 class DebugHole:
 	pass
 
-# finished_list = None
-# finished_lock = False
 def ThreadedTravelingSalesman(patchlist):
 	patchlist.traveling_salesman()
-
 
 class PatchList:
 
@@ -167,38 +166,21 @@ class PatchList:
 
 		begin = datetime.now()
 		if threaded:
-			# print 'list', len(list_of_patchLists)
-			# global finished_list
-			# global finished_lock
-			
-			# finished_list = [True for i in range(len(list_of_patchLists))]
-			# print finished_list
-			# finished_lock = False
-
-			# thread_counter = 0
+			# create a thread for each patchlist
 			threads = list()
 			for patchList in list_of_patchLists:
-				threads.append(threading.Thread(target=ThreadedTravelingSalesman, args=(patchList, ) ))
-				# thread_counter += 1
+				threads.append(multiprocessing.Process(target=ThreadedTravelingSalesman, args=(patchList,)))
 
-			dbg.write('starting threads')
 			for t in threads:
 				t.start()
 
-			dbg.write('waiting for threads')
+			# waiting for threads to finish
 			for t in threads:
 				t.join()
-				dbg.write('next')
-				
-
-			# print 'waiting for threads...'
-			# while any(finished_list):
-			# 	time.sleep(0.1)
-			# 	continue
 		else:
 			for patchList in list_of_patchLists:
 				patchList.traveling_salesman()
-		dbg.write("##time: %s" % str(datetime.now() - begin))
+		# print 'Threaded?', threaded, datetime.now() - begin
 
 		return PatchList(reduce(operator.add,
 			map(lambda pl: pl.patches, list_of_patchLists)))
@@ -389,7 +371,7 @@ class EmbroideryObject:
 				emb.addStitch(newStitch)
 		emb.translate_to_origin()
 		emb.scale(10.0/pixels_per_millimeter)
-		fp = open("C:/Users/alwynster/embroidery/embroider-output.exp", "wb")
+		fp = open("%sembroider-output.exp" % folder, "wb")
 		#fp = open("output.ksm", "wb")
 		fp.write(emb.export_melco(dbg))
 		fp.close()
@@ -455,7 +437,7 @@ class Embroider(inkex.Effect):
 	def __init__(self, *args, **kwargs):
 		if len(sys.argv) > 2:
 			dbg.write("writing args\n")
-			pickle.dump(sys.argv, open("C:/Users/alwynster/embroidery/args.pkl", "wb"))
+			pickle.dump(sys.argv, open("%sargs.pkl" % folder, "wb"))
 		dbg.write("args: %s\n" % repr(sys.argv))
 		inkex.Effect.__init__(self)
 		self.stacking_order_counter = 0
@@ -741,17 +723,16 @@ class Embroider(inkex.Effect):
 if __name__ == '__main__':
 	sys.setrecursionlimit(100000);
 	e = Embroider()
-	
-	#print len(sys.argv)
+
 	if len(sys.argv) == 2:
-		dbg.write("loading old arguments")
-		oldargs = pickle.load(open("C:/Users/alwynster/embroidery/args.pkl", "rb"))
-		#print oldargs
+		oldargs = pickle.load(open("%sargs.pkl" % folder, "rb"))
 		oldargs[-1] = sys.argv[-1]
-		e.affect(args=oldargs,output=False)
+		dbg.write("pickle loaded")
 	else:
-		e.affect()
+		oldargs = sys.argv
+	e.affect(args=oldargs,output=False)
+
 	dbg.write("aaaand, I'm done. seeeya!\n")
 	dbg.flush()
 
-dbg.close()
+	dbg.close()
